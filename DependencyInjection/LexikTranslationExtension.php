@@ -19,7 +19,6 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\DependencyInjection\Parameter;
 use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Loader;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\HttpKernel\Kernel;
 
@@ -62,7 +61,6 @@ class LexikTranslationExtension extends Extension implements PrependExtensionInt
 
         $objectManager = $config['storage']['object_manager'] ?? null;
 
-        $this->buildTranslatorDefinition($container);
         $this->buildTranslationStorageDefinition($container, $config['storage']['type'], $objectManager);
 
         if (true === $config['auto_cache_clean']) {
@@ -74,44 +72,6 @@ class LexikTranslationExtension extends Extension implements PrependExtensionInt
         }
 
         $this->registerTranslatorConfiguration($config, $container);
-    }
-
-    public function buildTranslatorDefinition(ContainerBuilder $container)
-    {
-        $translator = new Definition();
-        $translator->setClass('%lexik_translation.translator.class%');
-
-        if (Kernel::VERSION_ID >= 30400) {
-            $arguments = [
-                new Reference('service_container'), // Will be replaced by service locator
-                new Reference('translator.formatter.default'),
-                new Parameter('kernel.default_locale'),
-                [], // translation loaders
-                new Parameter('lexik_translation.translator.options')
-            ];
-            $translator->setPublic(true);
-        } elseif (Kernel::VERSION_ID >= 30300) {
-            $arguments = [
-                new Reference('service_container'), // Will be replaced by service locator
-                new Reference('translator.selector'),
-                new Parameter('kernel.default_locale'),
-                [], // translation loaders
-                new Parameter('lexik_translation.translator.options')
-            ];
-        } else {
-            $arguments = [
-                new Reference('service_container'),
-                new Reference('translator.selector'),
-                [], // translation loaders
-                new Parameter('lexik_translation.translator.options')
-            ];
-        }
-
-        $translator->setArguments($arguments);
-        $translator->addMethodCall('setConfigCacheFactory', [new Reference('config_cache_factory')]);
-        $translator->addTag('kernel.locale_aware');
-
-        $container->setDefinition('lexik_translation.translator', $translator);
     }
 
     /**
@@ -201,7 +161,7 @@ class LexikTranslationExtension extends Extension implements PrependExtensionInt
     protected function createDoctrineMappingDriver(ContainerBuilder $container, $driverId, $driverClass)
     {
         $driverDefinition = new Definition($driverClass, [
-            [realpath(__DIR__.'/../Resources/config/model') => 'Lexik\Bundle\TranslationBundle\Model'], 
+            [dirname(__DIR__) . '/Resources/config/model' => 'Lexik\Bundle\TranslationBundle\Model'],
             SimplifiedXmlDriver::DEFAULT_FILE_EXTENSION, true
         ]);
         $driverDefinition->setPublic(false);
@@ -232,10 +192,7 @@ class LexikTranslationExtension extends Extension implements PrependExtensionInt
     {
         // use the Lexik translator as default translator service
         $alias = $container->setAlias('translator', 'lexik_translation.translator');
-
-        if (Kernel::VERSION_ID >= 30400) {
-            $alias->setPublic(true);
-        }
+        $alias->setPublic(true);
 
         $translator = $container->findDefinition('lexik_translation.translator');
         $translator->addMethodCall('setFallbackLocales', [$config['fallback_locale']]);

@@ -8,7 +8,6 @@ use Symfony\Component\DependencyInjection\Compiler\ServiceLocatorTagPass;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\Reference;
-use Symfony\Component\HttpKernel\Kernel;
 
 /**
  * Translator compiler pass to automatically pass loader to the other services.
@@ -39,15 +38,11 @@ class TranslatorPass implements CompilerPassInterface
         }
 
         if ($container->hasDefinition('lexik_translation.translator')) {
-            if (Kernel::VERSION_ID >= 30300) {
-                $serviceRefs = [...$loadersReferencesById, ...['event_dispatcher' => new Reference('event_dispatcher')]];
+            $serviceRefs = [...$loadersReferencesById, ...['event_dispatcher' => new Reference('event_dispatcher')]];
 
-                $container->findDefinition('lexik_translation.translator')
-                    ->replaceArgument(0, ServiceLocatorTagPass::register($container, $serviceRefs))
-                    ->replaceArgument(3, $loaders);
-            } else {
-                $container->findDefinition('lexik_translation.translator')->replaceArgument(2, $loaders);
-            }
+            $container->findDefinition('lexik_translation.translator')
+                ->replaceArgument(0, ServiceLocatorTagPass::register($container, $serviceRefs))
+                ->replaceArgument(3, $loaders);
         }
 
         if ($container->hasDefinition(FileImporter::class)) {
